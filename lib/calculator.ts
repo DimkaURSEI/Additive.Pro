@@ -1,26 +1,12 @@
-export interface CalculatorInput {
-  printType: 'fdm' | 'sla';
-  quantity: number;
-  printerCount: number;
-  filamentCost: number;
-  partWeight: number;
-  partVolume: number;
-  printHours: number;
-  printMinutes: number;
+import { Machine, Part } from './types';
+
+// We map the new architecture back to old interfaces or refactor completely.
+// Let's refactor.
+
+export interface CalculatorTariffs {
+  monthlyRent: number;
   electricityCost: number;
-  printerWattage: number;
   laborHourlyRate: number;
-  postProcessingHours: number;
-  paintingEnabled: boolean;
-  paintingTime: number;
-  compressorPower: number;
-  paintChemistry: number;
-  paintArea: number;
-  failureRate: number;
-  complexity: number;
-  equipmentCost?: number;
-  equipmentLifespan?: number;
-  monthlyRent?: number;
 }
 
 export interface CalculatorOutput {
@@ -36,90 +22,66 @@ export interface CalculatorOutput {
   totalCost: number;
 }
 
-export function calculateCost(input: CalculatorInput): CalculatorOutput {
-  const {
-    printType,
-    quantity,
-    printerCount,
-    filamentCost,
-    partWeight,
-    partVolume,
-    printHours,
-    printMinutes,
-    electricityCost,
-    printerWattage,
-    laborHourlyRate,
-    postProcessingHours,
-    paintingEnabled,
-    paintingTime,
-    compressorPower,
-    paintChemistry,
-    paintArea,
-    failureRate,
-    complexity,
-    equipmentCost = 0,
-    equipmentLifespan = 0,
-    monthlyRent = 0
-  } = input;
-
-  const printTime = printHours + printMinutes / 60;
-  const effectivePrintTime = printTime * printerCount;
-
-  // Material cost
+export function calculatePartCost(part: Part, machine: Machine, tariffs: CalculatorTariffs): CalculatorOutput {
+  const printTime = part.timeHours + part.timeMinutes / 60;
+  
+  // Material
   let materialCost = 0;
-  if (printType === 'fdm') {
-    materialCost = (filamentCost * partWeight) / 1000;
+  if (part.printType === 'fdm') {
+    materialCost = (part.materialCost * (part.weightGrams || 0)) / 1000;
   } else {
-    materialCost = (filamentCost * partVolume) / 1000;
+    materialCost = (part.materialCost * (part.volumeMl || 0)) / 1000;
   }
 
   // Equipment depreciation
-  const depreciationCost = equipmentLifespan > 0 
-    ? (equipmentCost / equipmentLifespan) * effectivePrintTime 
+  const depreciationCost = machine && machine.lifespanHours > 0 
+    ? (machine.price / machine.lifespanHours) * printTime 
     : 0;
 
   // Rent cost
   const hoursPerMonth = 30 * 24;
-  const hourlyRent = monthlyRent / hoursPerMonth;
-  const rentCost = hourlyRent * effectivePrintTime;
+  const hourlyRent = (tariffs?.monthlyRent || 0) / hoursPerMonth;
+  const rentCost = hourlyRent * printTime;
 
   // Power cost
-  const powerCost = (printerWattage * printerCount * effectivePrintTime * electricityCost) / 1000;
+  const pWatt = machine ? machine.powerWatt : 0;
+  const powerCost = (pWatt * printTime * (tariffs?.electricityCost || 0)) / 1000;
 
   // Labor cost
-  const laborCost = laborHourlyRate * (printTime + postProcessingHours);
+  const laborCost = (tariffs?.laborHourlyRate || 0) * (printTime * 0.1 + part.postProcessingHours); // Assuming 10% of print time is active operator setup
 
-  // Post-processing cost (simplified)
-  const postProcessingCost = postProcessingHours * laborHourlyRate * 0.5;
+  // Post-processing cost material
+  const postProcessingCost = part.postProcessingHours * (tariffs?.laborHourlyRate || 0) * 0.1; // consumables
 
   // Painting cost
   let paintingCost = 0;
-  if (paintingEnabled) {
-    const paintingPowerCost = (compressorPower * paintingTime * electricityCost) / 1000;
-    const paintingLaborCost = paintingTime * laborHourlyRate;
-    paintingCost = paintingPowerCost + paintingLaborCost + paintChemistry;
+  if (part.paintingEnabled) {
+    const paintingPowerCost = (part.compressorPower * part.paintingTime * (tariffs?.electricityCost || 0)) / 1000;
+    const paintingLaborCost = part.paintingTime * (tariffs?.laborHourlyRate || 0);
+    paintingCost = paintingPowerCost + paintingLaborCost + part.paintChemistry;
   }
 
   // Risk cost
   const subtotal = materialCost + depreciationCost + rentCost + powerCost + laborCost + postProcessingCost + paintingCost;
-  const riskCost = subtotal * (failureRate / 100);
+  const riskCost = subtotal * (part.failureRate / 100);
 
-  // Complexity cost
-  const complexityCost = laborCost * (complexity - 1);
+  // Complexity cost (multiplier on labor)
+  const complexityCost = laborCost * ((part.complexity || 1) - 1);
 
   // Total cost
-  const totalCost = (subtotal + riskCost + complexityCost) * quantity;
+  let totalCost = (subtotal + riskCost + complexityCost) * (part.quantity || 1);
+  if(isNaN(totalCost)) totalCost = 0;
 
   return {
-    materialCost,
-    depreciationCost,
-    rentCost,
-    powerCost,
-    laborCost,
-    postProcessingCost,
-    paintingCost,
-    riskCost,
-    complexityCost,
+    materialCost: materialCost * part.quantity,
+    depreciationCost: depreciationCost * part.quantity,
+    rentCost: rentCost * part.quantity,
+    powerCost: powerCost * part.quantity,
+    laborCost: laborCost * part.quantity,
+    postProcessingCost: postProcessingCost * part.quantity,
+    paintingCost: paintingCost * part.quantity,
+    riskCost: riskCost * part.quantity,
+    complexityCost: complexityCost * part.quantity,
     totalCost
   };
 }

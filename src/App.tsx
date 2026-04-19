@@ -3,13 +3,14 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router'
 import { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut } from '@/lib/auth';
 import { NavTabs } from '@/components/navigation/nav-tabs';
-import { CalculatorForm } from '@/components/calculator/calculator-form';
 import { TimelineCalendar } from '@/components/erp/timeline-calendar';
 import { TariffsForm } from '@/components/settings/tariffs-form';
 import { LoginForm } from '@/components/auth/login-form';
 import { Button } from '@/components/ui/button';
 
-import { LogOut, Printer } from 'lucide-react';
+import { LogOut } from 'lucide-react';
+import { MachinesManager } from '@/components/settings/machines-manager';
+import { OrdersManager } from '@/components/orders/orders-manager';
 
 function ProtectedLayout({ children, user }: { children: React.ReactNode, user: User | null }) {
   if (!user) {
@@ -21,12 +22,12 @@ function ProtectedLayout({ children, user }: { children: React.ReactNode, user: 
       <header className="border-b border-white/10 px-4 py-6 md:px-8 pb-6 sticky top-0 z-40 bg-[#050505]/80 backdrop-blur-md">
         <div className="flex justify-between items-end max-w-7xl mx-auto w-full">
           <div className="flex flex-col gap-1">
-             <span className="text-[10px] uppercase tracking-[0.4em] opacity-50 text-primary">Calculated Precision</span>
+             <span className="text-[10px] uppercase tracking-[0.4em] opacity-50 text-primary">Расчет точности</span>
              <h1 className="text-4xl md:text-5xl serif italic font-normal tracking-tight">Additive.Pro</h1>
           </div>
           <div className="flex items-center gap-4 text-right">
             <div className="hidden md:flex flex-col items-end mr-4">
-              <div className="text-[10px] uppercase tracking-[0.2em] opacity-50">Firebase Deployment Node</div>
+              <div className="text-[10px] uppercase tracking-[0.2em] opacity-50">Сервер Firebase</div>
               <div className="text-sm font-mono text-primary opacity-80">v2.4.0-stable</div>
             </div>
             <Button
@@ -36,7 +37,7 @@ function ProtectedLayout({ children, user }: { children: React.ReactNode, user: 
               className="text-muted-foreground hover:text-white uppercase tracking-widest text-[10px] h-8 hidden md:flex"
             >
               <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+              Выход
             </Button>
           </div>
         </div>
@@ -60,7 +61,7 @@ function LoginPage() {
          </div>
          <div className="flex flex-col items-center text-center space-y-4">
           <div className="space-y-2">
-             <span className="text-[10px] uppercase tracking-[0.4em] opacity-50 text-primary">Calculated Precision</span>
+             <span className="text-[10px] uppercase tracking-[0.4em] opacity-50 text-primary">Расчет точности</span>
              <h1 className="text-4xl serif italic tracking-tight">Additive.Pro</h1>
           </div>
         </div>
@@ -97,11 +98,11 @@ export default function App() {
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
         
-        <Route path="/" element={<ProtectedLayout user={user}><div className="space-y-8"><div className="flex flex-col"><h2 className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2">Cost Estimation</h2></div><CalculatorForm /></div></ProtectedLayout>} />
+        <Route path="/" element={<ProtectedLayout user={user}><OrdersManager /></ProtectedLayout>} />
         
-        <Route path="/erp" element={<ProtectedLayout user={user}><div className="space-y-8"><div className="flex flex-col"><h2 className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2">Production Timeline</h2></div><TimelineCalendar /></div></ProtectedLayout>} />
+        <Route path="/erp" element={<ProtectedLayout user={user}><div className="space-y-8"><div className="flex flex-col"><h2 className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2">Производственный план</h2></div><TimelineCalendar /></div></ProtectedLayout>} />
         
-        <Route path="/settings" element={<ProtectedLayout user={user}><div className="space-y-8"><div className="flex flex-col"><h2 className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2">System Parameters</h2></div><div className="grid grid-cols-1 md:grid-cols-2 gap-8"><div className="glass p-8 relative overflow-hidden"><TariffsForm /></div></div></div></ProtectedLayout>} />
+        <Route path="/settings" element={<ProtectedLayout user={user}><div className="space-y-8"><div className="flex flex-col"><h2 className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2">Системные параметры</h2></div><div className="grid grid-cols-1 lg:grid-cols-2 gap-8"><div className="glass p-8 relative overflow-hidden"><TariffsForm /></div><div className="glass p-8 relative overflow-hidden"><MachinesManager /></div></div></div></ProtectedLayout>} />
       </Routes>
   );
 }

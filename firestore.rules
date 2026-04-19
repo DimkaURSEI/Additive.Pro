@@ -1,0 +1,91 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isAdmin() { return false; }
+    function isSignedIn() { return request.auth != null && request.auth.uid != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // Validation Blueprints
+    function isValidTariffs(data) {
+      return data.keys().hasAll(['monthlyRent', 'electricityCost', 'laborHourlyRate', 'updatedAt', 'authorId']) &&
+             data.keys().size() == 5 &&
+             data.monthlyRent is number &&
+             data.electricityCost is number &&
+             data.laborHourlyRate is number &&
+             data.updatedAt is timestamp &&
+             data.authorId == request.auth.uid;
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['title', 'start', 'end', 'updatedAt', 'authorId']) &&
+             data.keys().size() == 5 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.start is string && data.start.size() > 0 && data.start.size() <= 64 &&
+             data.end is string && data.end.size() > 0 && data.end.size() <= 64 &&
+             data.updatedAt is timestamp &&
+             data.authorId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      // Users can only access their own subcollections
+      match /settings/tariffs {
+        allow get: if isSignedIn() && request.auth.uid == userId;
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        
+        allow create: if isSignedIn() && request.auth.uid == userId && 
+                      isValidTariffs(incoming()) && 
+                      incoming().updatedAt == request.time;
+                      
+        allow update: if isSignedIn() && request.auth.uid == userId && 
+                      isValidTariffs(incoming()) && 
+                      incoming().authorId == existing().authorId &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['monthlyRent', 'electricityCost', 'laborHourlyRate', 'updatedAt']) &&
+                      incoming().updatedAt == request.time;
+      }
+      
+      match /settings/calculator_state {
+        allow get: if isSignedIn() && request.auth.uid == userId;
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        allow create, update: if isSignedIn() && request.auth.uid == userId;
+      }
+      
+      match /machines/{machineId} {
+        allow get, list, create, update, delete: if isSignedIn() && request.auth.uid == userId;
+      }
+      
+      match /orders/{orderId} {
+        allow get, list, create, update, delete: if isSignedIn() && request.auth.uid == userId;
+      }
+      
+      match /parts/{partId} {
+        allow get, list, create, update, delete: if isSignedIn() && request.auth.uid == userId;
+      }
+      
+      match /tasks/{taskId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(taskId);
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        
+        allow create: if isSignedIn() && request.auth.uid == userId && isValidId(taskId) &&
+                      isValidTask(incoming()) &&
+                      incoming().updatedAt == request.time;
+                      
+        allow update: if isSignedIn() && request.auth.uid == userId && isValidId(taskId) &&
+                      isValidTask(incoming()) &&
+                      incoming().authorId == existing().authorId &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['title', 'start', 'end', 'updatedAt']) &&
+                      incoming().updatedAt == request.time;
+                      
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(taskId);
+      }
+    }
+  }
+}

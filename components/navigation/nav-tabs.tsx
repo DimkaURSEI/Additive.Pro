@@ -2,9 +2,9 @@ import { useLocation, useNavigate } from 'react-router';
 import { Calculator, Settings, Calendar } from 'lucide-react';
 
 const tabs = [
-  { id: 'calculator', label: 'Калькулятор', icon: Calculator, path: '/' },
-  { id: 'erp', label: 'ERP Планирование', icon: Calendar, path: '/erp' },
-  { id: 'settings', label: 'Настройки', icon: Settings, path: '/settings' },
+  { id: 'calculator', label: 'Заказы и Расчет', icon: Calculator, path: '/' },
+  { id: 'erp', label: 'Таймлайн План', icon: Calendar, path: '/erp' },
+  { id: 'settings', label: 'Система', icon: Settings, path: '/settings' },
 ];
 
 export function NavTabs() {
